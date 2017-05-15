@@ -32,6 +32,7 @@
          delete/2,
          empty/0,
          enter/3,
+         foldr/3,
          from_orddict/1,
          lookup/2,
          merkle_proof/2,
@@ -160,7 +161,7 @@ to_orddict(Tree) ->
       [],
       Tree).
 
--spec foldr(fun((leaf_node(), Acc :: any()) -> any()), Acc :: any(), tree()) -> Acc :: any().
+-spec foldr(fun(({key(), value()}, Acc :: any()) -> any()), Acc :: any(), tree()) -> Acc :: any().
 %% @doc Iterate through keys and values, from those with highest keys to lowest.
 foldr(Fun, Acc, {_, RootNode}) ->
     foldr_1(Fun, Acc, RootNode).

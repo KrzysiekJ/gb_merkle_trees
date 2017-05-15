@@ -14,7 +14,7 @@ Run `make edoc` and open `doc/index.html`.
 
 Unless you’re deleting code or making pure optimizations, write tests. Except for basic cases, testing of this library is done using [triq](https://github.com/triqng/triq). To run tests, execute `make tests`.
 
-Write function specifications. To run Dialyzer, execute `make dialyzer`.
+Write function specifications. To run Dialyzer, execute `make dialyze`.
 
 No hard line length limit is imposed.
 
