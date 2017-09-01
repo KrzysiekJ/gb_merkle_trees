@@ -20,10 +20,24 @@ addons:
 before_install:
   - make --version
 script:
-  - make ${JOB:?}
+  - |
+    case "${JOB:?}" in
+      dotapp)
+        A=ebin/gb_merkle_trees.app
+        test -f ${A:?}
+        C=$(cat ${A:?})
+        rm ${A:?} && test ! -e ${A:?} && make ${A:?} && test -f ${A:?}
+        printf "%b" "${C:?}" | diff -u - ${A:?}
+        ;;
+      *)
+        make ${JOB:?}
+        ;;
+    esac
 matrix:
   include:
     - otp_release: 20.0.1
       env: JOB=edoc
+    - otp_release: 20.0.1
+      env: JOB=dotapp
 env:
   - JOB=check
