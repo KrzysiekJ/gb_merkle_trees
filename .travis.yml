@@ -23,8 +23,7 @@ script:
   - make ${JOB:?}
 matrix:
   include:
-    - language: erlang
-      otp_release: 20.0.1
+    - otp_release: 20.0.1
       env: JOB=edoc
 env:
   - JOB=tests
