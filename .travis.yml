@@ -1,0 +1,31 @@
+sudo: false
+dist: trusty
+language: erlang
+otp_release:
+  - 20.0.1
+  - 19.3.6.1
+  - 18.3
+addons:
+  apt:
+    sources:
+      - debian-sid
+    packages:
+      ## GNU Make 4.  GNU Make 3.81 as [in Ubuntu 14.04
+      ## "trusty"](https://packages.ubuntu.com/trusty/make) is not
+      ## sufficient, because of error on `triq` test dep when running
+      ## `make tests`.  Also erlang.mk reports the following warning:
+      ## "erlang.mk:24: Please upgrade to GNU Make 4 or later:
+      ## https://erlang.mk/guide/installation.html".
+      - make
+before_install:
+  - make -v
+script:
+  - make ${JOB:?}
+matrix:
+  include:
+    - language: erlang
+      otp_release: 20.0.1
+      env: JOB=edoc
+env:
+  - JOB=tests
+  - JOB=dialyze
