@@ -40,7 +40,8 @@
          merkle_proof/2,
          root_hash/1,
          size/1,
-         to_orddict/1]).
+         to_orddict/1,
+         verify_merkle_proof/4]).
 
 -ifdef(TEST).
 -include_lib("triq/include/triq.hrl").
@@ -139,6 +140,30 @@ merkle_proof_node(Key, {InnerKey, _, Left, Right}) ->
             {merkle_proof_node(Key, Left), node_hash(Right)};
         _ ->
             {node_hash(Left), merkle_proof_node(Key, Right)}
+    end.
+
+-spec verify_merkle_proof(key(), value(), Root::hash(), merkle_proof()) ->
+                                 ok | {error, Reason} when
+      Reason :: {key_hash_mismatch, hash()}
+              | {value_hash_mismatch, hash()}
+              | {root_hash_mismatch, hash()}.
+%% @doc Verify a proof against a leaf and a root node hash.
+verify_merkle_proof(Key, Value, RootHash, Proof) ->
+    {KH, VH} = {?HASH(Key), ?HASH(Value)},
+    {PKH, PVH} = bottom_merkle_proof_pair(Proof),
+    if
+        PKH =/= KH ->
+            {error, {key_hash_mismatch, PKH}};
+        PVH =/= VH ->
+            {error, {value_hash_mismatch, PKH}};
+        true ->
+            PRH = merkle_fold(Proof),
+            if
+                PRH =/= RootHash ->
+                    {error, {root_hash_mismatch, PRH}};
+                true ->
+                    ok
+            end
     end.
 
 -spec from_list(list({key(), value()})) -> tree().
@@ -357,6 +382,22 @@ update_inner_node(Node={Key, _, Left, Right}, NewLeft, NewRight) ->
         [_, _, NewLeftHash, NewRightHash] ->
             {Key, inner_hash(NewLeftHash, NewRightHash), NewLeft, NewRight}
     end.
+
+-spec merkle_fold(merkle_proof()) -> hash().
+merkle_fold({Left, Right}) ->
+    LeftHash = merkle_fold(Left),
+    RightHash = merkle_fold(Right),
+    ?HASH(<<LeftHash/binary, RightHash/binary>>);
+merkle_fold(Hash) ->
+    Hash.
+
+-spec bottom_merkle_proof_pair(merkle_proof()) -> {hash(), hash()}.
+bottom_merkle_proof_pair({Pair, Hash}) when is_tuple(Pair), is_binary(Hash) ->
+    bottom_merkle_proof_pair(Pair);
+bottom_merkle_proof_pair({_Hash, Pair}) when is_tuple(Pair) ->
+    bottom_merkle_proof_pair(Pair);
+bottom_merkle_proof_pair(Pair) ->
+    Pair.
 
 -ifdef(TEST).
 empty_test_() ->
@@ -411,22 +452,6 @@ is_perfectly_balanced(Tree) ->
 %% @doc Return true if F(X) =:= X.
 fun_idempotent(F, X) ->
     F(X) =:= X.
-
--spec merkle_fold(merkle_proof()) -> hash().
-merkle_fold({Left, Right}) ->
-    LeftHash = merkle_fold(Left),
-    RightHash = merkle_fold(Right),
-    ?HASH(<<LeftHash/binary, RightHash/binary>>);
-merkle_fold(Hash) ->
-    Hash.
-
--spec bottom_merkle_proof_pair(merkle_proof()) -> {hash(), hash()}.
-bottom_merkle_proof_pair({Pair, Hash}) when is_tuple(Pair), is_binary(Hash) ->
-    bottom_merkle_proof_pair(Pair);
-bottom_merkle_proof_pair({_Hash, Pair}) when is_tuple(Pair) ->
-    bottom_merkle_proof_pair(Pair);
-bottom_merkle_proof_pair(Pair) ->
-    Pair.
 
 prop_lookup_does_not_fetch_deleted_key() ->
     ?FORALL({Tree, Key, Value},
@@ -444,6 +469,37 @@ prop_merkle_proofs_contain_kv_hashes_at_the_bottom() ->
     ?FORALL({Tree, Key, Value},
             {tree(), key(), value()},
             bottom_merkle_proof_pair(merkle_proof(Key, enter(Key, Value, Tree))) =:= {?HASH(Key), ?HASH(Value)}).
+prop_merkle_proofs_can_be_verified() ->
+    ?FORALL({Tree, Key, Value},
+            {tree(), key(), value()},
+            ok =:= verify_merkle_proof(Key, Value, root_hash(enter(Key, Value, Tree)), merkle_proof(Key, enter(Key, Value, Tree)))).
+prop_merkle_proofs_verification_reports_mismatch_for_wrong_key() ->
+    ?FORALL({Tree, Key, Value},
+            {tree(), key(), value()},
+            case verify_merkle_proof(<<"X", Key/binary>>, Value, root_hash(enter(Key, Value, Tree)), merkle_proof(Key, enter(Key, Value, Tree))) of
+                {error, {key_hash_mismatch, H}} when is_binary(H) ->
+                    true;
+                _ ->
+                    false
+            end).
+prop_merkle_proofs_verification_reports_mismatch_for_wrong_value() ->
+    ?FORALL({Tree, Key, Value},
+            {tree(), key(), value()},
+            case verify_merkle_proof(Key, <<"X", Value/binary>>, root_hash(enter(Key, Value, Tree)), merkle_proof(Key, enter(Key, Value, Tree))) of
+                {error, {value_hash_mismatch, H}} when is_binary(H) ->
+                    true;
+                _ ->
+                    false
+            end).
+prop_merkle_proofs_verification_reports_mismatch_for_wrong_root_hash() ->
+    ?FORALL({Tree, Key, Value},
+            {tree(), key(), value()},
+            case verify_merkle_proof(Key, Value, begin RH = root_hash(enter(Key, Value, Tree)), <<"X", RH/binary>> end, merkle_proof(Key, enter(Key, Value, Tree))) of
+                {error, {root_hash_mismatch, H}} when is_binary(H) ->
+                    true;
+                _ ->
+                    false
+            end).
 prop_from_list_size() ->
     ?FORALL(KVList, list({key(), value()}),
             length(proplists:get_keys(KVList)) =:= ?MODULE:size(from_list(KVList))).
