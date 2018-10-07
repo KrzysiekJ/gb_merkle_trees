@@ -36,6 +36,7 @@
          from_list/1,
          from_orddict/1,
          from_orddict/2,
+         keys/1,
          lookup/2,
          merkle_proof/2,
          root_hash/1,
@@ -195,6 +196,14 @@ to_orddict(Tree) ->
       fun (KV, Acc) ->
               [KV|Acc]
       end,
+      [],
+      Tree).
+
+-spec keys(tree()) -> list(key()).
+%% @doc Return the keys as an ordered list.
+keys(Tree) ->
+    foldr(
+      fun ({Key, _}, Acc) -> [Key|Acc] end,
       [],
       Tree).
 
@@ -510,6 +519,8 @@ prop_orddict_conversion_idempotence() ->
     ?FORALL(KVO, kv_orddict(), KVO =:= to_orddict(from_orddict(KVO))).
 prop_from_orddict_returns_a_perfectly_balanced_tree() ->
     ?FORALL(KVO, kv_orddict(), is_perfectly_balanced(from_orddict(KVO))).
+prop_keys() ->
+    ?FORALL(Tree, tree(), keys(Tree) =:= [Key || {Key, _} <- to_orddict(Tree)]).
 from_list_sometimes_doesnt_return_a_perfectly_balanced_tree_test() ->
     ?assertNotEqual(
        true,

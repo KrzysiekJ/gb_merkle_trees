@@ -1,6 +1,6 @@
 PROJECT = gb_merkle_trees
 PROJECT_DESCRIPTION = General balanced Merkle trees
-PROJECT_VERSION = 0.2.1
+PROJECT_VERSION = 0.2.2
 
 TEST_DEPS = triq
 dep_triq = git https://gitlab.com/triq/triq.git e5ba907a11985bf8150f5b5b332d39516ab15857
